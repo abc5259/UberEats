@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateRestauarantDto } from './dtos/create-restaurant.dto';
+import { UpdateRestauarantDto } from './dtos/update-restaurant.dto';
 import { Restaurant } from './entities/restaurant.entity';
 
 @Injectable()
@@ -20,5 +21,9 @@ export class RestaurantService {
   ): Promise<Restaurant> {
     const newRestaurant = this.restaurant.create(createRestaurantDto);
     return this.restaurant.save(newRestaurant);
+  }
+
+  updateRestaurant({ id, data }: UpdateRestauarantDto) {
+    return this.restaurant.update(id, { ...data });
   }
 }
