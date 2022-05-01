@@ -7,6 +7,7 @@ import {
   CreateAccountInput,
   CreateAccountOutput,
 } from './dtos/create-account.dto';
+import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
 import { LoginInput, LoginOutput } from './dtos/login.dto';
 import { UserProfileInput, UserProfileOutput } from './dtos/user-profile.dto';
 import { User } from './entities/user.entity';
@@ -15,10 +16,6 @@ import { UsersService } from './users.service';
 @Resolver((of) => User)
 export class UsersResolver {
   constructor(private readonly usersService: UsersService) {}
-  @Query((returns) => Boolean)
-  hi() {
-    return true;
-  }
 
   @Mutation((returns) => CreateAccountOutput)
   async createAccount(
@@ -70,6 +67,25 @@ export class UsersResolver {
       return {
         ok: false,
         error: '해당 유저를 찾을 수 없습니다.',
+      };
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Mutation((returns) => EditProfileOutput)
+  async editProfile(
+    @AuthUser() authUser: User,
+    @Args('input') editProfileInput: EditProfileInput,
+  ): Promise<EditProfileOutput> {
+    try {
+      await this.usersService.editProfile(authUser.id, editProfileInput);
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error,
       };
     }
   }
