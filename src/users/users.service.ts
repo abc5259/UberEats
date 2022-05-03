@@ -128,7 +128,10 @@ export class UsersService {
         };
       }
       verification.user.verified = true;
-      this.users.save(verification.user);
+      await Promise.allSettled([
+        this.users.save(verification.user),
+        this.verifications.delete(verification.id),
+      ]);
       return {
         ok: true,
       };
