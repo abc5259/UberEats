@@ -144,7 +144,7 @@ export class UsersService {
     } catch (error) {
       return {
         ok: false,
-        error,
+        error: 'email 인증 불가',
       };
     }
   }
