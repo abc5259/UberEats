@@ -6,6 +6,7 @@ import { getConnection, Repository } from 'typeorm';
 import got from 'got';
 import { User } from 'src/users/entities/user.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { Verification } from 'src/users/entities/verification.entity';
 
 jest.mock('got', () => {
   return {
@@ -24,6 +25,7 @@ const testUser = {
 describe('UserModule (e2e)', () => {
   let app: INestApplication;
   let userRepository: Repository<User>;
+  let verificationRepository: Repository<Verification>;
   let jwtToken: string;
 
   beforeAll(async () => {
@@ -33,6 +35,7 @@ describe('UserModule (e2e)', () => {
 
     app = module.createNestApplication();
     userRepository = module.get(getRepositoryToken(User));
+    verificationRepository = module.get(getRepositoryToken(Verification));
     await app.init();
   });
 
@@ -312,6 +315,156 @@ describe('UserModule (e2e)', () => {
         });
     });
   });
-  it.todo('verifyEmail');
-  it.todo('editProfile');
+
+  describe('editProfile', () => {
+    const NEW_EMAIL = 'dlwogns3413@naver.com';
+    const NEW_PASSWORD = '12345';
+    it('email과 password 업데이트 해야한다.', () => {
+      return request(app.getHttpServer())
+        .post(GRAPHQL_ENDPOINT)
+        .set('X-JWT', jwtToken)
+        .send({
+          query: `
+            mutation {
+              editProfile(input: {
+                email: "${NEW_EMAIL}"
+                password: "${NEW_PASSWORD}"
+              }) {
+                ok 
+                error 
+              }
+            }
+        `,
+        })
+        .expect(200)
+        .expect((res) => {
+          const {
+            body: {
+              data: {
+                editProfile: { ok, error },
+              },
+            },
+          } = res;
+          expect(ok).toBe(true);
+          expect(error).toBe(null);
+        });
+    });
+    it('유저의 email이 바껴야하고 verified가 false가 되야한다.', () => {
+      return request(app.getHttpServer())
+        .post(GRAPHQL_ENDPOINT)
+        .set('X-JWT', jwtToken)
+        .send({
+          query: `
+              {
+                me {
+                  email 
+                  verified
+                }
+              }
+            `,
+        })
+        .expect(200)
+        .expect((res) => {
+          const {
+            body: {
+              data: {
+                me: { email, verified },
+              },
+            },
+          } = res;
+          expect(email).toBe(NEW_EMAIL);
+          expect(verified).toBe(false);
+        });
+    });
+    it('업데이트된 이메일과 비밀번호로 로그인이 되야한다', () => {
+      return request(app.getHttpServer())
+        .post(GRAPHQL_ENDPOINT)
+        .send({
+          query: `
+            mutation {
+              login(input: {
+                email: "${NEW_EMAIL}"
+                password: "${NEW_PASSWORD}"
+              }) {
+                ok 
+                token 
+                error 
+              }
+            }
+          `,
+        })
+        .expect(200)
+        .expect((res) => {
+          const {
+            body: {
+              data: { login },
+            },
+          } = res;
+          expect(login.ok).toBe(true);
+          expect(login.token).toEqual(expect.any(String));
+          expect(login.error).toBe(null);
+          jwtToken = login.token;
+        });
+    });
+  });
+
+  describe('verifyEmail', () => {
+    let verificationCode: string;
+    beforeAll(async () => {
+      const [verification] = await verificationRepository.find();
+      verificationCode = verification.code;
+    });
+    it('code가 올바르지 않다면 이메일 인증은 실패해야한다.', () => {
+      return request(app.getHttpServer())
+        .post(GRAPHQL_ENDPOINT)
+        .send({
+          query: `
+          mutation {
+            verifyEmail(input: {code: "xxxxxx"}) {
+              ok 
+              error
+            }
+          }
+        `,
+        })
+        .expect(200)
+        .expect((res) => {
+          const {
+            body: {
+              data: {
+                verifyEmail: { ok, error },
+              },
+            },
+          } = res;
+          expect(ok).toBe(false);
+          expect(error).toBe('Verification not found.');
+        });
+    });
+    it('이메일을 인증해야한다.', () => {
+      return request(app.getHttpServer())
+        .post(GRAPHQL_ENDPOINT)
+        .send({
+          query: `
+          mutation {
+            verifyEmail(input: {code: "${verificationCode}"}) {
+              ok 
+              error
+            }
+          }
+        `,
+        })
+        .expect(200)
+        .expect((res) => {
+          const {
+            body: {
+              data: {
+                verifyEmail: { ok, error },
+              },
+            },
+          } = res;
+          expect(ok).toBe(true);
+          expect(error).toBe(null);
+        });
+    });
+  });
 });
