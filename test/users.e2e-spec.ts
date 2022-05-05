@@ -18,6 +18,7 @@ const GRAPHQL_ENDPOINT = '/graphql';
 const testUser = {
   email: 'dlwogns3413@gmail.com',
   password: '123',
+  role: 'Client',
 };
 
 describe('UserModule (e2e)', () => {
@@ -51,7 +52,7 @@ describe('UserModule (e2e)', () => {
             createAccount(input: {
               email: "${testUser.email}"
               password: "${testUser.password}"
-              role: Client
+              role: ${testUser.role}
             }) {
               ok 
               error 
@@ -257,7 +258,60 @@ describe('UserModule (e2e)', () => {
         });
     });
   });
-  it.todo('me');
+
+  describe('me', () => {
+    it('로그인한 유저 정보를 반환해야한다.', () => {
+      return request(app.getHttpServer())
+        .post(GRAPHQL_ENDPOINT)
+        .set('X-JWT', jwtToken)
+        .send({
+          query: `
+          {
+            me {
+              email 
+              role 
+            }
+          }
+        `,
+        })
+        .expect(200)
+        .expect((res) => {
+          const {
+            body: {
+              data: {
+                me: { email, role },
+              },
+            },
+          } = res;
+          expect(email).toBe(testUser.email);
+          expect(role).toBe(testUser.role);
+        });
+    });
+
+    it('토큰이 일치하지 않는다면 실패해야한다', () => {
+      return request(app.getHttpServer())
+        .post(GRAPHQL_ENDPOINT)
+        .set('X-JWT', jwtToken + 'fake')
+        .send({
+          query: `
+          {
+            me {
+              email 
+              role 
+            }
+          }
+        `,
+        })
+        .expect(200)
+        .expect((res) => {
+          const {
+            body: { errors },
+          } = res;
+          const [error] = errors;
+          expect(error.message).toBe('Forbidden resource');
+        });
+    });
+  });
   it.todo('verifyEmail');
   it.todo('editProfile');
 });
