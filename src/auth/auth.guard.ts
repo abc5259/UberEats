@@ -21,8 +21,8 @@ export class AuthGuard implements CanActivate {
     if (!user) {
       return false;
     }
-    if (roles.includes('Any')) return true;
-    return roles.includes(user.role);
+    // if (roles.includes('Any')) return true;
+    return roles.includes('Any') || roles.includes(user.role);
   }
 }
 // authentication은 누가 자원을 요청하는지 확인하는 과정
