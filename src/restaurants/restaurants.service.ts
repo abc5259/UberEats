@@ -7,18 +7,21 @@ import {
   CreateRestauarantOutput,
 } from './dtos/create-restaurant.dto';
 import {
+  DeleteRestaurantInput,
+  DeleteRestaurantOutput,
+} from './dtos/delete-restaurant.dto';
+import {
   EditRestaurantInput,
   EditRestaurantOutput,
 } from './dtos/edit-restaurant.dto';
 import { Category } from './entities/category.entity';
-import { Restaurant } from './entities/restaurant.entity';
 import { CategoryRepository } from './repositories/category.repository';
+import { RestaurantRepository } from './repositories/restaurant.repository';
 
 @Injectable()
 export class RestaurantService {
   constructor(
-    @InjectRepository(Restaurant)
-    private readonly restaurants: Repository<Restaurant>,
+    private readonly restaurants: RestaurantRepository,
     private readonly categories: CategoryRepository,
   ) {}
 
@@ -54,7 +57,7 @@ export class RestaurantService {
     editRestaurantInput: EditRestaurantInput,
   ): Promise<EditRestaurantOutput> {
     try {
-      let restaurant = await this.restaurants.findOneOrFail({
+      const restaurant = await this.restaurants.findOne({
         where: { id: editRestaurantInput.restaurantId },
       });
       if (!restaurant) {
@@ -89,7 +92,39 @@ export class RestaurantService {
     } catch (error) {
       return {
         ok: false,
-        error: 'restaurant이을 수정할 수 없습니다.',
+        error: 'restaurant을 수정할 수 없습니다.',
+      };
+    }
+  }
+
+  async deleteRestaurant(
+    owner: User,
+    { restaurantId }: DeleteRestaurantInput,
+  ): Promise<DeleteRestaurantOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne({
+        where: { id: restaurantId },
+      });
+      if (!restaurant) {
+        return {
+          ok: false,
+          error: '해당 restaurant이 존재하지 않습니다.',
+        };
+      }
+      if (owner.id !== restaurant.ownerId) {
+        return {
+          ok: false,
+          error: 'restaurant의 Owner만 수정할 수 있습니다.',
+        };
+      }
+      await this.restaurants.delete(restaurant);
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: 'restaurant을 삭제할 수 없습니다.',
       };
     }
   }
