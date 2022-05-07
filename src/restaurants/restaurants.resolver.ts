@@ -10,6 +10,7 @@ import { AuthUser } from 'src/auth/auth-user.decorator';
 import { Role } from 'src/auth/role.guard';
 import { User, UserRole } from 'src/users/entities/user.entity';
 import { AllCategoriesOutput } from './dtos/all-category.dto';
+import { CategoryInput, CategoryOutput } from './dtos/category.dto';
 import {
   CreateRestauarantInput,
   CreateRestauarantOutput,
@@ -22,6 +23,7 @@ import {
   EditRestaurantInput,
   EditRestaurantOutput,
 } from './dtos/edit-restaurant.dto';
+import { RestaurantInput, RestaurantOutput } from './dtos/restaurants.dto';
 import { Category } from './entities/category.entity';
 import { Restaurant } from './entities/restaurant.entity';
 import { RestaurantService } from './restaurants.service';
@@ -61,6 +63,13 @@ export class RestaurantResolver {
       ok: true,
     };
   }
+
+  @Query((type) => RestaurantOutput)
+  async allRestaurants(
+    @Args('input') restaurantInput: RestaurantInput,
+  ): Promise<RestaurantOutput> {
+    return this.restaurantService.allRestaurants(restaurantInput);
+  }
 }
 
 @Resolver((of) => Category)
@@ -69,7 +78,6 @@ export class CategoryResolver {
 
   @ResolveField((type) => Number)
   async restaurantCount(@Parent() category: Category): Promise<number> {
-    console.log(category);
     return this.restaurantService.countRestaurants(category);
   }
 
@@ -77,4 +85,13 @@ export class CategoryResolver {
   allCategories(): Promise<AllCategoriesOutput> {
     return this.restaurantService.allCategories();
   }
+
+  @Query((type) => CategoryOutput)
+  async category(
+    @Args('input') categoryInput: CategoryInput,
+  ): Promise<CategoryOutput> {
+    return this.restaurantService.findCategoryBySlug(categoryInput);
+  }
+}
+{
 }
