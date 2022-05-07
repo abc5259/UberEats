@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
+import { AllCategoriesOutput } from './dtos/all-category.dto';
 import {
   CreateRestauarantInput,
   CreateRestauarantOutput,
@@ -127,5 +128,24 @@ export class RestaurantService {
         error: 'restaurant을 삭제할 수 없습니다.',
       };
     }
+  }
+
+  async allCategories(): Promise<AllCategoriesOutput> {
+    try {
+      const categories = await this.categories.find();
+      return {
+        ok: true,
+        categories,
+      };
+    } catch (error) {
+      return {
+        ok: true,
+        error: 'Category정보를 불러올 수 없습니다.',
+      };
+    }
+  }
+
+  countRestaurants(category: Category) {
+    return this.restaurants.count({ category });
   }
 }

@@ -1,7 +1,15 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import {
+  Args,
+  Mutation,
+  Parent,
+  Query,
+  ResolveField,
+  Resolver,
+} from '@nestjs/graphql';
 import { AuthUser } from 'src/auth/auth-user.decorator';
 import { Role } from 'src/auth/role.guard';
 import { User, UserRole } from 'src/users/entities/user.entity';
+import { AllCategoriesOutput } from './dtos/all-category.dto';
 import {
   CreateRestauarantInput,
   CreateRestauarantOutput,
@@ -14,6 +22,7 @@ import {
   EditRestaurantInput,
   EditRestaurantOutput,
 } from './dtos/edit-restaurant.dto';
+import { Category } from './entities/category.entity';
 import { Restaurant } from './entities/restaurant.entity';
 import { RestaurantService } from './restaurants.service';
 
@@ -51,5 +60,21 @@ export class RestaurantResolver {
     return {
       ok: true,
     };
+  }
+}
+
+@Resolver((of) => Category)
+export class CategoryResolver {
+  constructor(private readonly restaurantService: RestaurantService) {}
+
+  @ResolveField((type) => Number)
+  async restaurantCount(@Parent() category: Category): Promise<number> {
+    console.log(category);
+    return this.restaurantService.countRestaurants(category);
+  }
+
+  @Query((type) => AllCategoriesOutput)
+  allCategories(): Promise<AllCategoriesOutput> {
+    return this.restaurantService.allCategories();
   }
 }
