@@ -372,7 +372,24 @@ describe('RestaurantService', () => {
       expect(result).toEqual(1);
     });
   });
-  it.todo('findCategoryBySlug');
+
+  describe('findCategoryBySlug', () => {
+    const findCategoryBySlugArgs = { slug: 'korea-bbq', page: 1 };
+    it('category가 존재하지 않으면 실패해야한다.', async () => {
+      categoryRepository.findOne.mockResolvedValue(undefined);
+      const result = await service.findCategoryBySlug(findCategoryBySlugArgs);
+
+      expect(categoryRepository.findOne).toBeCalledTimes(1);
+      expect(categoryRepository.findOne).toBeCalledWith({
+        where: { slug: findCategoryBySlugArgs.slug },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: '해당 Category를 찾을 수 없습니다.',
+      });
+    });
+  });
   it.todo('allRestaurants');
   it.todo('findRestaurantById');
   it.todo('searchRestaurantByName');
