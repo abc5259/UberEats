@@ -333,8 +333,45 @@ describe('RestaurantService', () => {
       });
     });
   });
-  it.todo('allCategories');
-  it.todo('countRestaurants');
+
+  describe('allCategories', () => {
+    it('모든 Categorie들을 찾아야한다.', async () => {
+      categoryRepository.find.mockResolvedValue(expect.any(Array));
+      const result = await service.allCategories();
+
+      expect(categoryRepository.find).toBeCalledTimes(1);
+      expect(categoryRepository.find).toBeCalledWith();
+
+      expect(result).toEqual({
+        ok: true,
+        categories: expect.any(Array),
+      });
+    });
+
+    it('예외가 발생하면 실패해야한다.', async () => {
+      categoryRepository.find.mockRejectedValue(new Error());
+      const result = await service.allCategories();
+
+      expect(categoryRepository.find).toBeCalledTimes(1);
+      expect(categoryRepository.find).toBeCalledWith();
+
+      expect(result).toEqual({
+        ok: true,
+        error: 'Category정보를 불러올 수 없습니다.',
+      });
+    });
+  });
+  describe('countRestaurants', () => {
+    it('restaurant의 갯수를 반환해야한다.', async () => {
+      restaurantRepository.count.mockResolvedValue(1);
+      const result = await service.countRestaurants(expect.any(Category));
+      expect(restaurantRepository.count).toBeCalledTimes(1);
+      expect(restaurantRepository.count).toBeCalledWith({
+        category: expect.any(Category),
+      });
+      expect(result).toEqual(1);
+    });
+  });
   it.todo('findCategoryBySlug');
   it.todo('allRestaurants');
   it.todo('findRestaurantById');
