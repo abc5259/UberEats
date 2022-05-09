@@ -253,7 +253,86 @@ describe('RestaurantService', () => {
       });
     });
   });
-  it.todo('deleteRestaurant');
+
+  describe('deleteRestaurant', () => {
+    const deleteRestaurantArgs = {
+      owner: mockUser,
+      input: { restaurantId: 1 },
+    };
+    it('restaurant이 존재하지 않으면 실패해야한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue(undefined);
+      const result = await service.deleteRestaurant(
+        deleteRestaurantArgs.owner,
+        deleteRestaurantArgs.input,
+      );
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: deleteRestaurantArgs.input.restaurantId },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: '해당 restaurant이 존재하지 않습니다.',
+      });
+    });
+
+    it('restaurant Owner가 아니면 실패해야한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue({ ownerId: 2 });
+      const result = await service.deleteRestaurant(
+        deleteRestaurantArgs.owner,
+        deleteRestaurantArgs.input,
+      );
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: deleteRestaurantArgs.input.restaurantId },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'restaurant의 Owner만 수정할 수 있습니다.',
+      });
+    });
+
+    it('restaurant을 삭제해야 한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue({ ownerId: 1 });
+      const result = await service.deleteRestaurant(
+        deleteRestaurantArgs.owner,
+        deleteRestaurantArgs.input,
+      );
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: deleteRestaurantArgs.input.restaurantId },
+      });
+
+      expect(restaurantRepository.delete).toBeCalledTimes(1);
+      expect(restaurantRepository.delete).toBeCalledWith({ ownerId: 1 });
+
+      expect(result).toEqual({
+        ok: true,
+      });
+    });
+
+    it('예외가 발생하면 실패해야한다.', async () => {
+      restaurantRepository.findOne.mockRejectedValue(new Error());
+      const result = await service.deleteRestaurant(
+        deleteRestaurantArgs.owner,
+        deleteRestaurantArgs.input,
+      );
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: deleteRestaurantArgs.input.restaurantId },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'restaurant을 삭제할 수 없습니다.',
+      });
+    });
+  });
   it.todo('allCategories');
   it.todo('countRestaurants');
   it.todo('findCategoryBySlug');
