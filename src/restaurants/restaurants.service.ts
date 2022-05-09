@@ -85,7 +85,6 @@ export class RestaurantService {
           editRestaurantInput.categoryName,
         );
       }
-      console.log(category);
       await this.restaurants.save([
         {
           id: editRestaurantInput.restaurantId,

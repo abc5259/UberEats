@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { User, UserRole } from 'src/users/entities/user.entity';
+import { Category } from 'src/restaurants/entities/category.entity';
 import { Repository } from 'typeorm';
 import { CategoryRepository } from './repositories/category.repository';
 import { RestaurantRepository } from './repositories/restaurant.repository';
@@ -24,7 +25,7 @@ type MockCategoryRepository = Partial<
 >;
 
 const mockUser: User = {
-  id: expect.any(Number),
+  id: 1,
   email: expect.any(String),
   password: expect.any(String),
   role: expect.any(UserRole),
@@ -66,10 +67,13 @@ describe('RestaurantService', () => {
 
   describe('createRestaurant', () => {
     const createRestaurantArgs = {
-      address: '123',
-      name: 'BBQ',
-      coverImg: 'https//',
-      categoryName: 'Korea Bbq',
+      owner: mockUser,
+      input: {
+        address: '123',
+        name: 'BBQ',
+        coverImg: 'https//',
+        categoryName: 'Korea Bbq',
+      },
     };
     it('Restaurant을 만들어야한다.', async () => {
       restaurantRepository.create.mockReturnValue({ category: null });
@@ -78,20 +82,20 @@ describe('RestaurantService', () => {
         slug: 'korea-bbq',
       });
       const result = await service.createRestaurant(
-        mockUser,
-        createRestaurantArgs,
+        createRestaurantArgs.owner,
+        createRestaurantArgs.input,
       );
       expect(restaurantRepository.create).toBeCalledTimes(1);
       expect(restaurantRepository.create).toBeCalledWith({
         owner: mockUser,
-        address: createRestaurantArgs.address,
-        name: createRestaurantArgs.name,
-        coverImg: createRestaurantArgs.coverImg,
+        address: createRestaurantArgs.input.address,
+        name: createRestaurantArgs.input.name,
+        coverImg: createRestaurantArgs.input.coverImg,
       });
 
       expect(categoryRepository.getOrCreate).toBeCalledTimes(1);
       expect(categoryRepository.getOrCreate).toBeCalledWith(
-        createRestaurantArgs.categoryName,
+        createRestaurantArgs.input.categoryName,
       );
 
       expect(restaurantRepository.save).toBeCalledTimes(1);
@@ -110,8 +114,8 @@ describe('RestaurantService', () => {
     it('예외가 발생하면 실패해야 한다.', async () => {
       categoryRepository.getOrCreate.mockRejectedValue(new Error());
       const result = await service.createRestaurant(
-        mockUser,
-        createRestaurantArgs,
+        createRestaurantArgs.owner,
+        createRestaurantArgs.input,
       );
       expect(result).toEqual({
         ok: false,
@@ -119,7 +123,136 @@ describe('RestaurantService', () => {
       });
     });
   });
-  it.todo('editRestaurant');
+
+  describe('editRestaurant', () => {
+    const oldRestaurant = {
+      restaurantId: 1,
+      name: 'BHC',
+    };
+    const editRestaurantArgs = {
+      owner: mockUser,
+      input: {
+        ...oldRestaurant,
+      },
+    };
+    const editRestaurantArgsWithCategoryName = {
+      owner: mockUser,
+      input: {
+        ...oldRestaurant,
+        categoryName: 'korea bhc',
+      },
+    };
+    it('레스토랑을 찾지 못하면 실패해야한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue(undefined);
+      const result = await service.editRestaurant(
+        editRestaurantArgs.owner,
+        editRestaurantArgs.input,
+      );
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: editRestaurantArgs.input.restaurantId },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: '해당 restaurant이 존재하지 않습니다.',
+      });
+    });
+
+    it('레스토랑 Owner가 아니면 실패해야한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue({ ownerId: 2 });
+      const result = await service.editRestaurant(
+        editRestaurantArgs.owner,
+        editRestaurantArgs.input,
+      );
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: editRestaurantArgs.input.restaurantId },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'restaurant의 Owner만 수정할 수 있습니다.',
+      });
+    });
+
+    it('categoryName을 input으로 안주면 getOrCreate함수는 실행없이 성공해야한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue({ ownerId: 1 });
+      const result = await service.editRestaurant(
+        editRestaurantArgs.owner,
+        editRestaurantArgs.input,
+      );
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: editRestaurantArgs.input.restaurantId },
+      });
+
+      expect(categoryRepository.getOrCreate).toBeCalledTimes(0);
+
+      expect(restaurantRepository.save).toBeCalledTimes(1);
+      expect(restaurantRepository.save).toBeCalledWith([
+        {
+          id: editRestaurantArgs.input.restaurantId,
+          ...editRestaurantArgs.input,
+        },
+      ]);
+
+      expect(result).toEqual({
+        ok: true,
+      });
+    });
+
+    it('categoryName을 input으로 주면 getOrCreate함수는 실행후 성공해야한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue({ ownerId: 1 });
+      categoryRepository.getOrCreate.mockResolvedValue({
+        name: 'korea bhc',
+        slug: 'korea-bhc',
+      });
+      const result = await service.editRestaurant(
+        editRestaurantArgsWithCategoryName.owner,
+        editRestaurantArgsWithCategoryName.input,
+      );
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: editRestaurantArgs.input.restaurantId },
+      });
+
+      expect(categoryRepository.getOrCreate).toBeCalledTimes(1);
+      expect(categoryRepository.getOrCreate).toBeCalledWith('korea bhc');
+
+      expect(restaurantRepository.save).toBeCalledTimes(1);
+      expect(restaurantRepository.save).toBeCalledWith([
+        {
+          id: editRestaurantArgsWithCategoryName.input.restaurantId,
+          ...editRestaurantArgsWithCategoryName.input,
+          category: {
+            name: 'korea bhc',
+            slug: 'korea-bhc',
+          },
+        },
+      ]);
+
+      expect(result).toEqual({
+        ok: true,
+      });
+    });
+
+    it('예외가 발생하면 실패해야한다.', async () => {
+      restaurantRepository.findOne.mockRejectedValue(new Error());
+      const result = await service.editRestaurant(
+        editRestaurantArgs.owner,
+        editRestaurantArgs.input,
+      );
+      expect(result).toEqual({
+        ok: false,
+        error: 'restaurant을 수정할 수 없습니다.',
+      });
+    });
+  });
   it.todo('deleteRestaurant');
   it.todo('allCategories');
   it.todo('countRestaurants');
