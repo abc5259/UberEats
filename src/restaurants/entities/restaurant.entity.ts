@@ -39,9 +39,11 @@ export class Restaurant extends CoreEntity {
   })
   owner: User;
 
+  @Field((type) => [Dish])
   @OneToMany((type) => Dish, (dish) => dish.restaurant)
   menu: Dish[];
 
+  @Field((type) => Number)
   @RelationId((restaurant: Restaurant) => restaurant.owner)
   ownerId: number;
 }
