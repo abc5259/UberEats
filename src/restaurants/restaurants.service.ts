@@ -3,6 +3,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Raw } from 'typeorm';
 import { AllCategoriesOutput } from './dtos/all-category.dto';
 import { CategoryInput, CategoryOutput } from './dtos/category.dto';
+import { CreateDishInput, CreateDishOutput } from './dtos/create-dish.dto';
 import {
   CreateRestauarantInput,
   CreateRestauarantOutput,
@@ -216,6 +217,7 @@ export class RestaurantService {
     try {
       const restaurant = await this.restaurants.findOne({
         where: { id: restaurantId },
+        relations: ['menu'],
       });
       if (!restaurant) {
         return {
@@ -253,6 +255,19 @@ export class RestaurantService {
         totalResults,
         totalPages: Math.ceil(totalResults / 25),
       };
+    } catch (error) {
+      return {
+        ok: false,
+        error,
+      };
+    }
+  }
+
+  async createDish(
+    owner: User,
+    createDishInput: CreateDishInput,
+  ): Promise<CreateDishOutput> {
+    try {
     } catch (error) {
       return {
         ok: false,

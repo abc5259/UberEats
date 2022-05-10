@@ -6,6 +6,7 @@ import { Raw, Repository } from 'typeorm';
 import { CategoryRepository } from './repositories/category.repository';
 import { RestaurantRepository } from './repositories/restaurant.repository';
 import { RestaurantService } from './restaurants.service';
+import { Dish } from './entities/dish.entity';
 
 jest.mock('typeorm', () => {
   const actual = jest.requireActual('typeorm');
@@ -49,6 +50,7 @@ describe('RestaurantService', () => {
   let service: RestaurantService;
   let restaurantRepository: MockRepository<RestaurantRepository>;
   let categoryRepository: MockCategoryRepository;
+  let dishRepository: MockRepository<Dish>;
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
@@ -62,11 +64,16 @@ describe('RestaurantService', () => {
           provide: getRepositoryToken(RestaurantRepository),
           useValue: mockRepository(),
         },
+        {
+          provide: getRepositoryToken(Dish),
+          useValue: mockRepository(),
+        },
       ],
     }).compile();
     service = module.get<RestaurantService>(RestaurantService);
     restaurantRepository = module.get(getRepositoryToken(RestaurantRepository));
     categoryRepository = module.get(getRepositoryToken(CategoryRepository));
+    dishRepository = module.get(getRepositoryToken(Dish));
   });
 
   it('should be defined', () => {
@@ -489,6 +496,7 @@ describe('RestaurantService', () => {
       expect(restaurantRepository.findOne).toBeCalledTimes(1);
       expect(restaurantRepository.findOne).toBeCalledWith({
         where: { id: findRestaurantByIdArgs.restaurantId },
+        relations: ['menu'],
       });
 
       expect(result).toEqual({
@@ -504,6 +512,7 @@ describe('RestaurantService', () => {
       expect(restaurantRepository.findOne).toBeCalledTimes(1);
       expect(restaurantRepository.findOne).toBeCalledWith({
         where: { id: findRestaurantByIdArgs.restaurantId },
+        relations: ['menu'],
       });
 
       expect(result).toEqual({
@@ -519,6 +528,7 @@ describe('RestaurantService', () => {
       expect(restaurantRepository.findOne).toBeCalledTimes(1);
       expect(restaurantRepository.findOne).toBeCalledWith({
         where: { id: findRestaurantByIdArgs.restaurantId },
+        relations: ['menu'],
       });
 
       expect(result).toEqual({
