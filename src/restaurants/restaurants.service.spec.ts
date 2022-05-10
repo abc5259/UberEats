@@ -389,6 +389,50 @@ describe('RestaurantService', () => {
         error: '해당 Category를 찾을 수 없습니다.',
       });
     });
+
+    it('slug로 Category를 찾는데 성공해야한다.', async () => {
+      categoryRepository.findOne.mockResolvedValue({ name: '', slug: '' });
+      jest.spyOn(service, 'countRestaurants').mockImplementation(async () => 0);
+      restaurantRepository.find.mockResolvedValue([]);
+      const result = await service.findCategoryBySlug(findCategoryBySlugArgs);
+
+      expect(categoryRepository.findOne).toBeCalledTimes(1);
+      expect(categoryRepository.findOne).toBeCalledWith({
+        where: { slug: findCategoryBySlugArgs.slug },
+      });
+
+      expect(restaurantRepository.find).toBeCalledTimes(1);
+      expect(restaurantRepository.find).toBeCalledWith({
+        where: { category: { name: '', slug: '' } },
+        take: 25,
+        skip: (findCategoryBySlugArgs.page - 1) * 25,
+      });
+
+      expect(service.countRestaurants).toBeCalledTimes(1);
+      expect(service.countRestaurants).toBeCalledWith({ name: '', slug: '' });
+      expect(result).toEqual({
+        ok: true,
+        category: { name: '', slug: '' },
+        results: [],
+        totalPages: Math.ceil(0 / 25),
+        totalResults: 0,
+      });
+    });
+
+    it('예외가 발생하면 실패해야한다.', async () => {
+      categoryRepository.findOne.mockRejectedValue(new Error());
+      const result = await service.findCategoryBySlug(findCategoryBySlugArgs);
+
+      expect(categoryRepository.findOne).toBeCalledTimes(1);
+      expect(categoryRepository.findOne).toBeCalledWith({
+        where: { slug: findCategoryBySlugArgs.slug },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'Category를 찾는데 문제가 생겼습니다.',
+      });
+    });
   });
   it.todo('allRestaurants');
   it.todo('findRestaurantById');
