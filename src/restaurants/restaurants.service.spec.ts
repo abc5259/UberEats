@@ -2,10 +2,18 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { User, UserRole } from 'src/users/entities/user.entity';
 import { Category } from 'src/restaurants/entities/category.entity';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import { CategoryRepository } from './repositories/category.repository';
 import { RestaurantRepository } from './repositories/restaurant.repository';
 import { RestaurantService } from './restaurants.service';
+
+jest.mock('typeorm', () => {
+  const actual = jest.requireActual('typeorm');
+  return {
+    ...actual,
+    Raw: jest.fn(),
+  };
+});
 
 const mockRepository = () => ({
   findOne: jest.fn(),
@@ -434,7 +442,141 @@ describe('RestaurantService', () => {
       });
     });
   });
-  it.todo('allRestaurants');
-  it.todo('findRestaurantById');
-  it.todo('searchRestaurantByName');
+
+  describe('allRestaurants', () => {
+    const allRestaurantsArgs = { page: 1 };
+    it('모든 Restaurant들을 가져와서 반환해야한다.', async () => {
+      restaurantRepository.findAndCount.mockResolvedValue([[], 0]);
+      const result = await service.allRestaurants(allRestaurantsArgs);
+
+      expect(restaurantRepository.findAndCount).toBeCalledTimes(1);
+      expect(restaurantRepository.findAndCount).toBeCalledWith({
+        take: 25,
+        skip: (allRestaurantsArgs.page - 1) * 25,
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        results: [],
+        totalPages: Math.ceil(0 / 25),
+        totalResults: 0,
+      });
+    });
+
+    it('예외가 발생하면 실패해야한다.', async () => {
+      restaurantRepository.findAndCount.mockRejectedValue(new Error());
+      const result = await service.allRestaurants(allRestaurantsArgs);
+
+      expect(restaurantRepository.findAndCount).toBeCalledTimes(1);
+      expect(restaurantRepository.findAndCount).toBeCalledWith({
+        take: 25,
+        skip: (allRestaurantsArgs.page - 1) * 25,
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: expect.any(Error),
+      });
+    });
+  });
+
+  describe('findRestaurantById', () => {
+    const findRestaurantByIdArgs = { restaurantId: 1 };
+    it('Restaurant을 찾지못하면 실패해야한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue(undefined);
+      const result = await service.findRestaurantById(findRestaurantByIdArgs);
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: findRestaurantByIdArgs.restaurantId },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'restaurant을 찾을 수 없습니다.',
+      });
+    });
+
+    it('id에 해당하는 Restaurant을 찾아야한다.', async () => {
+      restaurantRepository.findOne.mockResolvedValue({ id: 1 });
+      const result = await service.findRestaurantById(findRestaurantByIdArgs);
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: findRestaurantByIdArgs.restaurantId },
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        restaurant: { id: 1 },
+      });
+    });
+
+    it('예외가 발생하면 실패해야한다.', async () => {
+      restaurantRepository.findOne.mockRejectedValue(new Error());
+      const result = await service.findRestaurantById(findRestaurantByIdArgs);
+
+      expect(restaurantRepository.findOne).toBeCalledTimes(1);
+      expect(restaurantRepository.findOne).toBeCalledWith({
+        where: { id: findRestaurantByIdArgs.restaurantId },
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'restaurant을 찾는데 실패하였습니다.',
+      });
+    });
+  });
+
+  describe('searchRestaurantByName', () => {
+    const searchRestaurantByNameArgs = { query: '', page: 1 };
+    it('query에 해당하는 Restaurant을 찾아야한다.', async () => {
+      restaurantRepository.findAndCount.mockResolvedValue([[], 0]);
+      const result = await service.searchRestaurantByName(
+        searchRestaurantByNameArgs,
+      );
+      expect(restaurantRepository.findAndCount).toBeCalledTimes(1);
+      expect(Raw).toBeCalledTimes(1);
+      expect(Raw).toBeCalledWith(expect.any(Function));
+      expect(restaurantRepository.findAndCount).toBeCalledWith({
+        where: {
+          name: Raw(
+            (name) => `${name} ILIKE '%${searchRestaurantByNameArgs.query}%'`,
+          ),
+        },
+        take: 25,
+        skip: (searchRestaurantByNameArgs.page - 1) * 25,
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        restaurants: [],
+        totalResults: 0,
+        totalPages: Math.ceil(0 / 25),
+      });
+    });
+    it('예외가 발생하면 실패해야한다.', async () => {
+      restaurantRepository.findAndCount.mockRejectedValue(new Error());
+      const result = await service.searchRestaurantByName(
+        searchRestaurantByNameArgs,
+      );
+      expect(restaurantRepository.findAndCount).toBeCalledTimes(1);
+      expect(Raw).toBeCalled();
+      expect(Raw).toBeCalledWith(expect.any(Function));
+      expect(restaurantRepository.findAndCount).toBeCalledWith({
+        where: {
+          name: Raw(
+            (name) => `${name} ILIKE '%${searchRestaurantByNameArgs.query}%'`,
+          ),
+        },
+        take: 25,
+        skip: (searchRestaurantByNameArgs.page - 1) * 25,
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: expect.any(Error),
+      });
+    });
+  });
 });
