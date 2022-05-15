@@ -1,6 +1,5 @@
 import { EntityRepository, Repository } from 'typeorm';
 import { Restaurant } from '../entities/restaurant.entity';
-import { ErrorMessage } from '../errors/errors.message';
 
 @EntityRepository(Restaurant)
 export class RestaurantRepository extends Repository<Restaurant> {
@@ -9,7 +8,7 @@ export class RestaurantRepository extends Repository<Restaurant> {
       where: { id: restaurantId },
     });
     if (!restaurant) {
-      throw new Error(ErrorMessage.FindOndFail);
+      // throw new Error(ErrorMessage.FindOndFail);
     }
     return restaurant;
   }
