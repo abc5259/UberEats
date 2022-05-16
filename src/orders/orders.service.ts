@@ -2,9 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Dish } from 'src/restaurants/entities/dish.entity';
 import { RestaurantRepository } from 'src/restaurants/repositories/restaurant.repository';
-import { User } from 'src/users/entities/user.entity';
+import { User, UserRole } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { CreateOrderInput, CreateOrderOutput } from './dtos/create-order.dto';
+import { GetOrderInput, GetOrderOutput } from './dtos/get-order.dto';
+import { GetOrdersInput, GetOrdersOutput } from './dtos/get-orders.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { Order, OrderStatus } from './entities/order.entity';
 
@@ -91,6 +93,86 @@ export class OrdersService {
       return {
         ok: false,
         error: '주문을 할 수 없습니다.',
+      };
+    }
+  }
+
+  async getOrders(
+    user: User,
+    { status }: GetOrdersInput,
+  ): Promise<GetOrdersOutput> {
+    try {
+      let orders: Order[] = [];
+      if (user.role === UserRole.Client) {
+        orders = await this.orders.find({
+          where: { ...(status && { status }), customer: user },
+        });
+        console.log('dd');
+      } else if (user.role === UserRole.Delivery) {
+        orders = await this.orders.find({
+          where: { status, driver: user },
+        });
+      } else if (user.role === UserRole.Owner) {
+        const restaurants = await this.restaurants.find({
+          where: {
+            ...(status && { status }),
+            owner: user,
+          },
+          relations: ['orders'],
+        });
+        orders = restaurants.map((restaurant) => restaurant.orders).flat(1);
+        if (status) {
+          orders = orders.filter((order) => order.status === status);
+        }
+      }
+      return {
+        ok: true,
+        orders,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error,
+      };
+    }
+  }
+
+  async getOrder(user: User, { id }: GetOrderInput): Promise<GetOrderOutput> {
+    try {
+      const order = await this.orders.findOne({
+        where: { id },
+        relations: ['restaurant'],
+      });
+      if (!order) {
+        return {
+          ok: false,
+          error: '주문을 찾을 수 없습니다.',
+        };
+      }
+      let canSee = true;
+      if (user.role === UserRole.Client && order.customerId !== user.id) {
+        canSee = false;
+      }
+      if (user.role === UserRole.Delivery && order.driverId !== user.id) {
+        canSee = false;
+      }
+      if (
+        user.role === UserRole.Owner &&
+        order.restaurant.ownerId !== user.id
+      ) {
+        canSee = false;
+      }
+      if (!canSee) {
+        throw new Error();
+      }
+      return {
+        ok: true,
+        order,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: '주문을 로드할 수 없습니다.',
       };
     }
   }
