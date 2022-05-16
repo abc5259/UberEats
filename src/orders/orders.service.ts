@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Dish } from 'src/restaurants/entities/dish.entity';
 import { RestaurantRepository } from 'src/restaurants/repositories/restaurant.repository';
 import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { CreateOrderInput, CreateOrderOutput } from './dtos/create-order.dto';
+import { OrderItem } from './entities/order-item.entity';
 import { Order, OrderStatus } from './entities/order.entity';
 
 @Injectable()
@@ -11,6 +13,10 @@ export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly orders: Repository<Order>,
+    @InjectRepository(OrderItem)
+    private readonly orderItems: Repository<OrderItem>,
+    @InjectRepository(Dish)
+    private readonly dishes: Repository<Dish>,
     private readonly restaurants: RestaurantRepository,
   ) {}
 
@@ -28,14 +34,63 @@ export class OrdersService {
           error: 'restaurant을 찾을 수 없습니다.',
         };
       }
-      const order = this.orders.create({
-        restaurant,
-        customer,
-      });
+      let orderFinalPrice = 0;
+      const orderItems: OrderItem[] = [];
+      for (const item of items) {
+        const dish = await this.dishes.findOne({ where: { id: item.dishId } });
+        if (!dish) {
+          // error 처리
+          return {
+            ok: false,
+            error: 'dish를 찾을 수 없습니다.',
+          };
+        }
+        let dishFinalPrice = dish.price;
+        for (const itemOptions of item.options) {
+          const dishOption = dish.opsions.find(
+            (dishOption) => dishOption.name === itemOptions.name,
+          );
+          if (dishOption) {
+            if (dishOption.extra) {
+              console.log(`추가 돈 + ${dishOption.extra}`);
+              dishFinalPrice += dishOption.extra;
+            } else {
+              const dishOptionChoice = dishOption.choices.find(
+                (optionChoice) => optionChoice.name === itemOptions.choice,
+              );
+              if (dishOptionChoice) {
+                if (dishOptionChoice.extra) {
+                  console.log(`추가 돈 + ${dishOptionChoice.extra}`);
+                  dishFinalPrice += dishOptionChoice.extra;
+                }
+              }
+            }
+          }
+        }
+        orderFinalPrice += dishFinalPrice;
+        const orderItem = await this.orderItems.save(
+          this.orderItems.create({
+            dish,
+            opsions: item.options,
+          }),
+        );
+        orderItems.push(orderItem);
+      }
+      await this.orders.save(
+        this.orders.create({
+          restaurant,
+          customer,
+          total: orderFinalPrice,
+          items: orderItems,
+        }),
+      );
+      return {
+        ok: true,
+      };
     } catch (error) {
       return {
         ok: false,
-        error,
+        error: '주문을 할 수 없습니다.',
       };
     }
   }
