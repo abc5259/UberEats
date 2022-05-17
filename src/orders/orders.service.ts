@@ -5,6 +5,7 @@ import { RestaurantRepository } from 'src/restaurants/repositories/restaurant.re
 import { User, UserRole } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { CreateOrderInput, CreateOrderOutput } from './dtos/create-order.dto';
+import { EditOrderInput, EditOrderOutput } from './dtos/edit-order.dto';
 import { GetOrderInput, GetOrderOutput } from './dtos/get-order.dto';
 import { GetOrdersInput, GetOrdersOutput } from './dtos/get-orders.dto';
 import { OrderItem } from './entities/order-item.entity';
@@ -137,6 +138,38 @@ export class OrdersService {
     }
   }
 
+  canSeeOrder(user: User, order: Order): boolean {
+    let canSee = true;
+    if (user.role === UserRole.Client && order.customerId !== user.id) {
+      canSee = false;
+    }
+    if (user.role === UserRole.Delivery && order.driverId !== user.id) {
+      canSee = false;
+    }
+    if (user.role === UserRole.Owner && order.restaurant.ownerId !== user.id) {
+      canSee = false;
+    }
+    return canSee;
+  }
+
+  canEditOrder(user: User, status: OrderStatus): boolean {
+    let canEdit = true;
+    if (user.role === UserRole.Client) {
+      canEdit = false;
+    }
+    if (user.role === UserRole.Owner) {
+      if (status !== OrderStatus.Cooking && status !== OrderStatus.Cooked) {
+        canEdit = false;
+      }
+    }
+    if (user.role === UserRole.Delivery) {
+      if (status !== OrderStatus.PickedUp && status !== OrderStatus.Delivered) {
+        canEdit = false;
+      }
+    }
+    return canEdit;
+  }
+
   async getOrder(user: User, { id }: GetOrderInput): Promise<GetOrderOutput> {
     try {
       const order = await this.orders.findOne({
@@ -149,20 +182,7 @@ export class OrdersService {
           error: '주문을 찾을 수 없습니다.',
         };
       }
-      let canSee = true;
-      if (user.role === UserRole.Client && order.customerId !== user.id) {
-        canSee = false;
-      }
-      if (user.role === UserRole.Delivery && order.driverId !== user.id) {
-        canSee = false;
-      }
-      if (
-        user.role === UserRole.Owner &&
-        order.restaurant.ownerId !== user.id
-      ) {
-        canSee = false;
-      }
-      if (!canSee) {
+      if (!this.canSeeOrder(user, order)) {
         throw new Error();
       }
       return {
@@ -173,6 +193,44 @@ export class OrdersService {
       return {
         ok: false,
         error: '주문을 로드할 수 없습니다.',
+      };
+    }
+  }
+
+  async editOrder(
+    user: User,
+    { id, status }: EditOrderInput,
+  ): Promise<EditOrderOutput> {
+    try {
+      const order = await this.orders.findOne({
+        where: { id },
+        relations: ['restaurant'],
+      });
+      if (!order) {
+        return {
+          ok: false,
+          error: '주문을 찾을 수 없습니다.',
+        };
+      }
+      if (!this.canSeeOrder(user, order)) {
+        throw new Error();
+      }
+      if (!this.canEditOrder(user, status)) {
+        return {
+          ok: false,
+          error: '수정 권한이 없습니다.',
+        };
+      }
+      await this.orders.save([
+        {
+          id: order.id,
+          status,
+        },
+      ]);
+    } catch (error) {
+      return {
+        ok: false,
+        error,
       };
     }
   }
