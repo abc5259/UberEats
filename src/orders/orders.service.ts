@@ -108,7 +108,6 @@ export class OrdersService {
         orders = await this.orders.find({
           where: { ...(status && { status }), customer: user },
         });
-        console.log('dd');
       } else if (user.role === UserRole.Delivery) {
         orders = await this.orders.find({
           where: { status, driver: user },
@@ -227,6 +226,9 @@ export class OrdersService {
           status,
         },
       ]);
+      return {
+        ok: true,
+      };
     } catch (error) {
       return {
         ok: false,
