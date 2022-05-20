@@ -15,6 +15,7 @@ import { CreateOrderInput, CreateOrderOutput } from './dtos/create-order.dto';
 import { EditOrderInput, EditOrderOutput } from './dtos/edit-order.dto';
 import { GetOrderInput, GetOrderOutput } from './dtos/get-order.dto';
 import { GetOrdersInput, GetOrdersOutput } from './dtos/get-orders.dto';
+import { TakeOrderInput, TakeOrderOutput } from './dtos/take-order.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { Order, OrderStatus } from './entities/order.entity';
 
@@ -252,6 +253,42 @@ export class OrdersService {
       return {
         ok: false,
         error,
+      };
+    }
+  }
+
+  async takeOrder(
+    driver: User,
+    { id }: TakeOrderInput,
+  ): Promise<TakeOrderOutput> {
+    try {
+      const order = await this.orders.findOne({ where: { id } });
+      if (!order) {
+        return {
+          ok: false,
+          error: 'order을 찾을 수 없습니다.',
+        };
+      }
+      if (order.driverId) {
+        return {
+          ok: false,
+          error: '이미 배달이 잡힌 order입니다.',
+        };
+      }
+      await this.orders.save({
+        id: order.id,
+        driver,
+      });
+      await this.pubsub.publish(NEW_ORDER_UPDATE, {
+        orderUpdates: { ...order, driver },
+      });
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: 'order을 업데이트 할 수 없습니다.',
       };
     }
   }
