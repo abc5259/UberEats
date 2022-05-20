@@ -237,7 +237,7 @@ export class OrdersService {
       const updateOrder = { ...order, status };
       if (user.role === UserRole.Owner) {
         if (status === OrderStatus.Cooked) {
-          this.pubsub.publish(NEW_COOKED_ORDER, {
+          await this.pubsub.publish(NEW_COOKED_ORDER, {
             cookedOrders: updateOrder,
           });
         }
