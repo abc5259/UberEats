@@ -280,7 +280,7 @@ export class OrdersService {
         driver,
       });
       await this.pubsub.publish(NEW_ORDER_UPDATE, {
-        orderUpdates: { ...order, driver },
+        orderUpdates: { ...order, driver, driverId: driver.id },
       });
       return {
         ok: true,
