@@ -1,7 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PubSub } from 'graphql-subscriptions';
-import { NEW_PENDING_ORDER, PUB_SUB } from 'src/common/common.constants';
+import {
+  NEW_COOKED_ORDER,
+  NEW_ORDER_UPDATE,
+  NEW_PENDING_ORDER,
+  PUB_SUB,
+} from 'src/common/common.constants';
 import { Dish } from 'src/restaurants/entities/dish.entity';
 import { RestaurantRepository } from 'src/restaurants/repositories/restaurant.repository';
 import { User, UserRole } from 'src/users/entities/user.entity';
@@ -180,7 +185,6 @@ export class OrdersService {
     try {
       const order = await this.orders.findOne({
         where: { id },
-        relations: ['restaurant'],
       });
       if (!order) {
         return {
@@ -210,7 +214,6 @@ export class OrdersService {
     try {
       const order = await this.orders.findOne({
         where: { id },
-        relations: ['restaurant'],
       });
       if (!order) {
         return {
@@ -227,12 +230,21 @@ export class OrdersService {
           error: '수정 권한이 없습니다.',
         };
       }
-      await this.orders.save([
-        {
-          id: order.id,
-          status,
-        },
-      ]);
+      await this.orders.save({
+        id: order.id,
+        status,
+      });
+      const updateOrder = { ...order, status };
+      if (user.role === UserRole.Owner) {
+        if (status === OrderStatus.Cooked) {
+          this.pubsub.publish(NEW_COOKED_ORDER, {
+            cookedOrders: updateOrder,
+          });
+        }
+      }
+      await this.pubsub.publish(NEW_ORDER_UPDATE, {
+        orderUpdates: updateOrder,
+      });
       return {
         ok: true,
       };
