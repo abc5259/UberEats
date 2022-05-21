@@ -3,7 +3,7 @@ import { Cron, Interval, SchedulerRegistry, Timeout } from '@nestjs/schedule';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { RestaurantRepository } from 'src/restaurants/repositories/restaurant.repository';
 import { User } from 'src/users/entities/user.entity';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import {
   CreatePaymentInput,
   CreatePaymentOutput,
@@ -76,5 +76,17 @@ export class PaymentsService {
         error: 'patments을 가져오는데 문제가 생겼습니다.',
       };
     }
+  }
+
+  @Cron('0 30 4 * * *') //매일 새벽4시 30분에 실행
+  async checkPromotedRestaurants() {
+    const restaurants = await this.restaurants.find({
+      where: { isPromoted: true, promotedUtil: LessThan(new Date()) },
+    });
+    restaurants.forEach(async (restaurant) => {
+      restaurant.isPromoted = false;
+      restaurant.promotedUtil = null;
+      await this.restaurants.save(restaurant);
+    });
   }
 }
