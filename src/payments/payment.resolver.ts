@@ -1,5 +1,11 @@
-import { Mutation, Resolver } from '@nestjs/graphql';
-import { CreatePaymentOutput } from './dtos/create-payment.dto';
+import { Args, Mutation, Resolver } from '@nestjs/graphql';
+import { AuthUser } from 'src/auth/auth-user.decorator';
+import { Role } from 'src/auth/role.guard';
+import { User } from 'src/users/entities/user.entity';
+import {
+  CreatePaymentInput,
+  CreatePaymentOutput,
+} from './dtos/create-payment.dto';
 import { Payment } from './entities/payment.entity';
 import { PaymentsService } from './payment.service';
 
@@ -8,5 +14,11 @@ export class PaymentsResolver {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Mutation((returns) => CreatePaymentOutput)
-  createPayment() {}
+  @Role(['Owner'])
+  createPayment(
+    @AuthUser() owner: User,
+    @Args('input') createPaymentInput: CreatePaymentInput,
+  ): Promise<CreatePaymentOutput> {
+    return this.paymentsService.createPayment(owner, createPaymentInput);
+  }
 }
