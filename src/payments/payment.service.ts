@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Cron, Interval, SchedulerRegistry, Timeout } from '@nestjs/schedule';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { RestaurantRepository } from 'src/restaurants/repositories/restaurant.repository';
 import { User } from 'src/users/entities/user.entity';
@@ -16,6 +17,7 @@ export class PaymentsService {
     @InjectRepository(Payment)
     private readonly payments: Repository<Payment>,
     private readonly restaurants: RestaurantRepository,
+    private schedulerRegistry: SchedulerRegistry,
   ) {}
 
   async createPayment(
@@ -45,6 +47,11 @@ export class PaymentsService {
           restaurant,
         }),
       );
+      restaurant.isPromoted = true;
+      const date = new Date();
+      date.setDate(date.getDate() + 7); //7일 이후까지
+      restaurant.promotedUtil = date;
+      await this.restaurants.save(restaurant);
       return {
         ok: true,
       };
